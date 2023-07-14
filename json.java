@@ -13,17 +13,17 @@ class node {
     List<node> childrenArray = new ArrayList<node>();
     Map<String, String> values;
     List<String> valuesPrimitive = new ArrayList<String>();
-    String nodeType;
+    nodeType nodeType;
 }
 
 class token {
-    public token(String _value, String _tokenType) {
+    public token(String _value, tokenType _tokenType) {
         this.value = _value;
         this.tokenType = _tokenType;
     }
 
     public String value;
-    public String tokenType;
+    public tokenType tokenType;
 }
 
 interface Next {
@@ -32,6 +32,20 @@ interface Next {
 
 interface NextNext {
     public char run(char val);
+}
+
+enum tokenType {
+    openObj,
+    open,
+    openArray,
+    primitive,
+    value,
+    closed,
+}
+
+enum nodeType {
+    object,
+    array
 }
 
 class lexer {
@@ -91,31 +105,31 @@ class lexer {
                 continue;
             }
             if (cChar == '{') {
-                token _c = new token(t, "OpenObj");
+                token _c = new token(t, tokenType.openObj);
                 tokens.add(_c);
                 t = "";
             } else if (cChar == ':' && nextnext.run('{') == '{') {
-                token _c = new token(t, "open");
+                token _c = new token(t, tokenType.open);
                 tokens.add(_c);
                 t = "";
             } else if (cChar == ':' && nextnext.run('[') == '[') {
-                token _c = new token(t, "openArray");
+                token _c = new token(t, tokenType.openArray);
                 tokens.add(_c);
                 t = "";
             } else if (cChar == ',' || cChar == '}' || cChar == ']') {
                 if (str.length() > 0) {
                     Boolean isPrimitive = t.contains(":");
                     if (!isPrimitive) {
-                        token _c = new token(t, "primitive");
+                        token _c = new token(t, tokenType.primitive);
                         tokens.add(_c);
                     } else {
-                        token _c = new token(t, "value");
+                        token _c = new token(t, tokenType.value);
                         tokens.add(_c);
                     }
                     t = "";
                 }
                 if (cChar == '}' || cChar == ']') {
-                    token _c = new token(t, "closed");
+                    token _c = new token(t, tokenType.closed);
                     tokens.add(_c);
                 }
             } else {
@@ -134,12 +148,12 @@ class Json {
         String b = Files.readString(fileName);
         Stack<node> stack = new Stack<>();
         List<token> tokens = lexer.lex(b);
-        String initToken = tokens.get(0).tokenType;
+        tokenType initToken = tokens.get(0).tokenType;
         tokens.remove(0);
-        if (initToken == "OpenObj") {
+        if (initToken == tokenType.openObj) {
             node _c = new node();
             _c.children = new HashMap<String, node>();
-            _c.nodeType = "object";
+            _c.nodeType = nodeType.object;
             stack.push(_c);
         } else {
             // todo
@@ -147,30 +161,31 @@ class Json {
         while (tokens.size() > 1) {
             token cToken = tokens.get(0);
             tokens.remove(0);
-            if (cToken.tokenType == "open" || cToken.tokenType == "OpenObj" || cToken.tokenType == "openArray") {
+            if (cToken.tokenType == tokenType.open || cToken.tokenType == tokenType.openObj
+                    || cToken.tokenType == tokenType.openArray) {
                 node _c = new node();
                 _c.children = new HashMap<String, node>();
                 _c.values = new HashMap<String, String>();
                 node tObj = stack.lastElement();
                 stack.push(_c);
-                if (cToken.tokenType == "openArray") {
-                    _c.nodeType = "array";
+                if (cToken.tokenType == tokenType.openArray) {
+                    _c.nodeType = nodeType.array;
                 } else {
-                    _c.nodeType = "object";
+                    _c.nodeType = nodeType.object;
                 }
-                if (cToken.tokenType == "OpenObj") {
+                if (cToken.tokenType == tokenType.openObj) {
                     tObj.childrenArray.add(_c);
                 } else {
                     tObj.children.put(cToken.value, _c);
                 }
-            } else if (cToken.tokenType == "value") {
+            } else if (cToken.tokenType == tokenType.value) {
                 String[] result = cToken.value.split(":");
                 node tObj = stack.lastElement();
                 tObj.values.put(result[0], result[1]);
-            } else if (cToken.tokenType == "primitive") {
+            } else if (cToken.tokenType == tokenType.primitive) {
                 node tObj = stack.lastElement();
                 tObj.valuesPrimitive.add(cToken.value);
-            } else if (cToken.tokenType == "closed") {
+            } else if (cToken.tokenType == tokenType.closed) {
                 stack.pop();
             }
         }
